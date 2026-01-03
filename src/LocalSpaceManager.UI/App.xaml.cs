@@ -23,17 +23,35 @@ public partial class App : Application
     {
         base.OnStartup(e);
         
-        // Configure dependency injection
-        var services = new ServiceCollection();
-        ConfigureServices(services);
-        _serviceProvider = services.BuildServiceProvider();
+        // Add global exception handling
+        AppDomain.CurrentDomain.UnhandledException += (s, ex) => 
+            LogFatalError(ex.ExceptionObject as Exception, "AppDomain.UnhandledException");
         
-        // Initialize database
-        InitializeDatabase();
-        
-        // Show main window
-        var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
-        mainWindow.Show();
+        DispatcherUnhandledException += (s, ex) => 
+        {
+            LogFatalError(ex.Exception, "DispatcherUnhandledException");
+            ex.Handled = true;
+        };
+
+        try 
+        {
+            // Configure dependency injection
+            var services = new ServiceCollection();
+            ConfigureServices(services);
+            _serviceProvider = services.BuildServiceProvider();
+            
+            // Initialize database
+            InitializeDatabase();
+            
+            // Show main window
+            var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+            mainWindow.Show();
+        }
+        catch (Exception ex)
+        {
+            LogFatalError(ex, "Startup Error");
+            Shutdown();
+        }
         
         // Start background monitoring
         var scanService = _serviceProvider.GetRequiredService<BackgroundScanService>();
@@ -101,16 +119,36 @@ public partial class App : Application
     
     private void InitializeDatabase()
     {
-        using var scope = _serviceProvider!.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<LocalSpaceDbContext>();
-        
-        // Create database if it doesn't exist
-        context.Database.EnsureCreated();
-        
-        // Apply any pending migrations
-        if (context.Database.GetPendingMigrations().Any())
+        try 
         {
-            context.Database.Migrate();
+            using var scope = _serviceProvider!.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<LocalSpaceDbContext>();
+            
+            // Create database if it doesn't exist
+            context.Database.EnsureCreated();
+            
+            // Apply any pending migrations
+            if (context.Database.GetPendingMigrations().Any())
+            {
+                context.Database.Migrate();
+            }
         }
+        catch (Exception ex)
+        {
+            throw new Exception("Failed to initialize database. Check if SQLite is accessible.", ex);
+        }
+    }
+
+    private void LogFatalError(Exception? ex, string source)
+    {
+        string message = $"A fatal error occurred in {source}:\n{ex?.Message}\n\n{ex?.StackTrace}";
+        MessageBox.Show(message, "Local Space Manager - Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        
+        try 
+        {
+            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fatal_error.log");
+            File.AppendAllText(logPath, $"{DateTime.Now}: [{source}] {message}\n\n");
+        }
+        catch { /* Ignore logging failures */ }
     }
 }
