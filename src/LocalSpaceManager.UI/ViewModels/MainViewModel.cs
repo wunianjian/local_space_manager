@@ -18,6 +18,7 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly BackgroundScanService _scanService;
     private bool _isScanning;
     private string _statusMessage = "Ready";
+    private string _dbSizeText = "DB Size: 0 B";
     private double _progressValue;
     private string _progressText = string.Empty;
     private string _timeRemainingText = string.Empty;
@@ -45,6 +46,16 @@ public class MainViewModel : INotifyPropertyChanged
         set
         {
             _statusMessage = value;
+            OnPropertyChanged();
+        }
+    }
+    
+    public string DbSizeText
+    {
+        get => _dbSizeText;
+        set
+        {
+            _dbSizeText = value;
             OnPropertyChanged();
         }
     }
@@ -169,6 +180,7 @@ public class MainViewModel : INotifyPropertyChanged
             
             var totalFiles = await _fileRepository.GetTotalFilesCountAsync();
             var totalSize = await _fileRepository.GetTotalSizeAsync();
+            UpdateDbSize();
             StatusMessage = $"Showing {Files.Count} of {totalFiles:N0} files | Total: {FormatBytes(totalSize)}";
         }
         catch (Exception ex)
@@ -212,7 +224,26 @@ public class MainViewModel : INotifyPropertyChanged
     {
         IsScanning = false;
         StatusMessage = "Scan completed";
+        UpdateDbSize();
         _ = LoadFilesAsync();
+    }
+    
+    private void UpdateDbSize()
+    {
+        try
+        {
+            var dbPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "LocalSpaceManager",
+                "localspace.db");
+            
+            if (File.Exists(dbPath))
+            {
+                var info = new FileInfo(dbPath);
+                DbSizeText = $"DB Size: {FormatBytes(info.Length)}";
+            }
+        }
+        catch { /* Ignore */ }
     }
     
     private static string FormatBytes(long bytes)

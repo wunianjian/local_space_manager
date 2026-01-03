@@ -75,6 +75,10 @@
                 <TextBlock Text="{Binding StatusMessage}"/>
             </StatusBarItem>
             <Separator/>
+            <StatusBarItem>
+                <TextBlock Text="{Binding DbSizeText}" Foreground="#666666"/>
+            </StatusBarItem>
+            <Separator/>
             <StatusBarItem HorizontalAlignment="Right">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="Monitoring: "/>

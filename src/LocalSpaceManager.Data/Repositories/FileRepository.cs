@@ -137,6 +137,7 @@ public class FileRepository : IFileRepository
     public async Task ClearAllAsync()
     {
         await _context.Database.ExecuteSqlRawAsync("DELETE FROM Files");
+        await _context.Database.ExecuteSqlRawAsync("VACUUM"); // Reclaim space
     }
     
     private static FileEntity MapToEntity(FileInfoModel model)
