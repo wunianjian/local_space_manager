@@ -7,6 +7,10 @@
         Title="Local Space Manager" Height="600" Width="1000"
         WindowStartupLocation="CenterScreen">
     
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+    </Window.Resources>
+    
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -95,8 +99,4 @@
             </Border>
         </Grid>
     </Grid>
-    
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-    </Window.Resources>
 </Window>
