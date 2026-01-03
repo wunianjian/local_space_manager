@@ -35,6 +35,10 @@ public class FileScanner : IFileScanner
         var filesScanned = 0;
         long totalBytes = 0;
         
+        // Estimate total files for progress bar (rough estimate based on drive stats if possible)
+        // For now, we'll use a dynamic estimation that grows as we find more files
+        int estimatedTotalFiles = 100000; 
+
         foreach (var path in paths)
         {
             if (cancellationToken.IsCancellationRequested)
@@ -119,15 +123,28 @@ public class FileScanner : IFileScanner
                         filesScanned++;
                         totalBytes += fileModel.SizeInBytes;
                         
-                        // Report progress every 100 files
-                        if (filesScanned % 100 == 0)
+                        // Report progress every 500 files for better performance
+                        if (filesScanned % 500 == 0)
                         {
+                            // Adjust estimation if we exceed it
+                            if (filesScanned >= estimatedTotalFiles)
+                                estimatedTotalFiles = (int)(filesScanned * 1.5);
+
+                            var elapsed = stopwatch.Elapsed;
+                            var speed = filesScanned / elapsed.TotalSeconds;
+                            var remainingFiles = estimatedTotalFiles - filesScanned;
+                            var remainingTime = speed > 0 ? TimeSpan.FromSeconds(remainingFiles / speed) : TimeSpan.Zero;
+
                             progress?.Report(new ScanProgress
                             {
                                 FilesScanned = filesScanned,
                                 TotalBytesScanned = totalBytes,
                                 CurrentPath = file.FullName,
-                                ElapsedTime = stopwatch.Elapsed
+                                ElapsedTime = elapsed,
+                                PercentComplete = Math.Min(99, (double)filesScanned / estimatedTotalFiles * 100),
+                                ScanSpeed = speed,
+                                RemainingTime = remainingTime,
+                                TotalFilesEstimated = estimatedTotalFiles
                             });
                         }
                     }

@@ -18,6 +18,9 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly BackgroundScanService _scanService;
     private bool _isScanning;
     private string _statusMessage = "Ready";
+    private double _progressValue;
+    private string _progressText = string.Empty;
+    private string _timeRemainingText = string.Empty;
     private int _currentPage = 0;
     private const int PageSize = 1000;
     private string _sortMode = "Size";
@@ -42,6 +45,36 @@ public class MainViewModel : INotifyPropertyChanged
         set
         {
             _statusMessage = value;
+            OnPropertyChanged();
+        }
+    }
+    
+    public double ProgressValue
+    {
+        get => _progressValue;
+        set
+        {
+            _progressValue = value;
+            OnPropertyChanged();
+        }
+    }
+    
+    public string ProgressText
+    {
+        get => _progressText;
+        set
+        {
+            _progressText = value;
+            OnPropertyChanged();
+        }
+    }
+    
+    public string TimeRemainingText
+    {
+        get => _timeRemainingText;
+        set
+        {
+            _timeRemainingText = value;
             OnPropertyChanged();
         }
     }
@@ -151,7 +184,28 @@ public class MainViewModel : INotifyPropertyChanged
     
     private void OnScanProgressChanged(object? sender, ScanProgress progress)
     {
-        StatusMessage = $"Scanning: {progress.FilesScanned:N0} files | {FormatBytes(progress.TotalBytesScanned)} | {progress.CurrentPath}";
+        ProgressValue = progress.PercentComplete;
+        ProgressText = $"{progress.FilesScanned:N0} files found ({FormatBytes(progress.TotalBytesScanned)})";
+        
+        if (progress.RemainingTime.HasValue && progress.RemainingTime.Value > TimeSpan.Zero)
+        {
+            TimeRemainingText = $"Estimated time remaining: {FormatTimeSpan(progress.RemainingTime.Value)}";
+        }
+        else
+        {
+            TimeRemainingText = string.Empty;
+        }
+
+        StatusMessage = $"Scanning: {progress.CurrentPath}";
+    }
+    
+    private static string FormatTimeSpan(TimeSpan ts)
+    {
+        if (ts.TotalHours >= 1)
+            return $"{(int)ts.TotalHours}h {ts.Minutes}m {ts.Seconds}s";
+        if (ts.TotalMinutes >= 1)
+            return $"{ts.Minutes}m {ts.Seconds}s";
+        return $"{ts.Seconds}s";
     }
     
     private void OnScanCompleted(object? sender, EventArgs e)

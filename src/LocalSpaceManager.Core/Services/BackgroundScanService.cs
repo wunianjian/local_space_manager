@@ -58,18 +58,30 @@ public class BackgroundScanService : IDisposable
             
             // Save to database in batches
             var fileList = files.ToList();
-            var batchSize = 1000;
+            var batchSize = 2000; // Increased batch size for faster DB operations
             
-            for (int i = 0; i < fileList.Count; i += batchSize)
+            // Run DB operations in a separate task to keep UI responsive
+            await Task.Run(async () => 
             {
-                if (cancellationToken.IsCancellationRequested)
-                    break;
+                for (int i = 0; i < fileList.Count; i += batchSize)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        break;
+                        
+                    var batch = fileList.Skip(i).Take(batchSize);
+                    await _fileRepository.AddFilesAsync(batch);
                     
-                var batch = fileList.Skip(i).Take(batchSize);
-                await _fileRepository.AddFilesAsync(batch);
-                
-                _logger?.LogDebug("Saved batch {BatchNumber} ({Count} files)", i / batchSize + 1, batch.Count());
-            }
+                    // Report DB saving progress
+                    var dbProgress = new ScanProgress
+                    {
+                        FilesScanned = fileList.Count,
+                        CurrentPath = $"Saving to database: {i:N0} / {fileList.Count:N0}",
+                        PercentComplete = 99, // Almost done
+                        IsComplete = false
+                    };
+                    ScanProgressChanged?.Invoke(this, dbProgress);
+                }
+            }, cancellationToken);
             
             _logger?.LogInformation("Initial scan completed. Total files: {Count}", fileList.Count);
             ScanCompleted?.Invoke(this, EventArgs.Empty);

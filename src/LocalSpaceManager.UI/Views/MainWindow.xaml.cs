@@ -13,4 +13,11 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
     }
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        // Instead of closing, just hide the window to keep the background service running
+        e.Cancel = true;
+        this.Hide();
+    }
 }

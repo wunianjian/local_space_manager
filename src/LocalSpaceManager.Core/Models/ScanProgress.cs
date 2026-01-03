@@ -11,9 +11,15 @@ public class ScanProgress
     
     public string CurrentPath { get; set; } = string.Empty;
     
-    public int PercentComplete { get; set; }
+    public double PercentComplete { get; set; }
     
     public TimeSpan ElapsedTime { get; set; }
+    
+    public TimeSpan? RemainingTime { get; set; }
+    
+    public double ScanSpeed { get; set; } // Files per second
+    
+    public int TotalFilesEstimated { get; set; }
     
     public bool IsComplete { get; set; }
     

@@ -19,6 +19,8 @@ public partial class App : Application
 {
     private ServiceProvider? _serviceProvider;
     
+    private System.Windows.Forms.NotifyIcon? _notifyIcon;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -46,6 +48,9 @@ public partial class App : Application
             // Show main window
             var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
             mainWindow.Show();
+            
+            // Initialize System Tray
+            InitializeNotifyIcon();
         }
         catch (Exception ex)
         {
@@ -78,9 +83,40 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         // Clean up
+        _notifyIcon?.Dispose();
         _serviceProvider?.GetRequiredService<BackgroundScanService>().Dispose();
         _serviceProvider?.Dispose();
         base.OnExit(e);
+    }
+
+    private void InitializeNotifyIcon()
+    {
+        _notifyIcon = new System.Windows.Forms.NotifyIcon();
+        _notifyIcon.Icon = System.Drawing.SystemIcons.Application;
+        _notifyIcon.Visible = true;
+        _notifyIcon.Text = "Local Space Manager";
+        
+        var contextMenu = new System.Windows.Forms.ContextMenuStrip();
+        contextMenu.Items.Add("Open", null, (s, e) => ShowMainWindow());
+        contextMenu.Items.Add("Exit", null, (s, e) => Shutdown());
+        
+        _notifyIcon.ContextMenuStrip = contextMenu;
+        _notifyIcon.DoubleClick += (s, e) => ShowMainWindow();
+    }
+
+    private void ShowMainWindow()
+    {
+        if (MainWindow == null)
+        {
+            MainWindow = _serviceProvider?.GetRequiredService<MainWindow>();
+        }
+        
+        MainWindow?.Show();
+        if (MainWindow?.WindowState == WindowState.Minimized)
+        {
+            MainWindow.WindowState = WindowState.Normal;
+        }
+        MainWindow?.Activate();
     }
     
     private void ConfigureServices(IServiceCollection services)

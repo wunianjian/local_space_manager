@@ -90,11 +90,33 @@
             <Border Background="White" 
                     CornerRadius="10" 
                     Padding="30"
+                    Width="450"
                     HorizontalAlignment="Center" 
                     VerticalAlignment="Center">
                 <StackPanel>
-                    <TextBlock Text="Scanning..." FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
-                    <ProgressBar IsIndeterminate="True" Height="20" Width="200" Margin="0,10,0,0"/>
+                    <TextBlock Text="Initializing Disk Scan" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+                    
+                    <TextBlock Text="{Binding ProgressText}" HorizontalAlignment="Left" Margin="0,0,0,5"/>
+                    <ProgressBar Value="{Binding ProgressValue}" Height="25" Width="400" Margin="0,0,0,5"/>
+                    
+                    <Grid Width="400">
+                        <TextBlock Text="{Binding TimeRemainingText}" HorizontalAlignment="Left" Foreground="#666666"/>
+                        <TextBlock Text="{Binding ProgressValue, StringFormat={}{0:F1}%}" HorizontalAlignment="Right" FontWeight="Bold"/>
+                    </Grid>
+                    
+                    <TextBlock Text="{Binding StatusMessage}" 
+                               FontSize="11" 
+                               Foreground="#888888" 
+                               TextTrimming="CharacterEllipsis" 
+                               Margin="0,15,0,0" 
+                               HorizontalAlignment="Center"/>
+                    
+                    <TextBlock Text="This may take several minutes for large drives. The app will remain responsive." 
+                               FontSize="10" 
+                               FontStyle="Italic" 
+                               Foreground="#999999" 
+                               Margin="0,10,0,0" 
+                               HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>
         </Grid>
