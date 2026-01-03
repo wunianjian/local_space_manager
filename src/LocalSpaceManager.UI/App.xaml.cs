@@ -54,6 +54,7 @@ public partial class App : Application
         }
         
         // Start background monitoring
+        if (_serviceProvider == null) return;
         var scanService = _serviceProvider.GetRequiredService<BackgroundScanService>();
         
         // Monitor all fixed drives by default
@@ -121,7 +122,21 @@ public partial class App : Application
     {
         try 
         {
-            using var scope = _serviceProvider!.CreateScope();
+            if (_serviceProvider == null) return;
+
+            // Ensure directory exists before initializing database
+            var dbPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "LocalSpaceManager",
+                "localspace.db");
+            
+            var directory = Path.GetDirectoryName(dbPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<LocalSpaceDbContext>();
             
             // Create database if it doesn't exist
