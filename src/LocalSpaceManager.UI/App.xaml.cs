@@ -112,9 +112,9 @@ public partial class App : System.Windows.Application
         }
         
         MainWindow?.Show();
-        if (MainWindow?.WindowState == WindowState.Minimized)
+        if (MainWindow?.WindowState == System.Windows.WindowState.Minimized)
         {
-            MainWindow.WindowState = WindowState.Normal;
+            MainWindow.WindowState = System.Windows.WindowState.Normal;
         }
         MainWindow?.Activate();
     }
@@ -193,7 +193,7 @@ public partial class App : System.Windows.Application
     private void LogFatalError(Exception? ex, string source)
     {
         string message = $"A fatal error occurred in {source}:\n{ex?.Message}\n\n{ex?.StackTrace}";
-        MessageBox.Show(message, "Local Space Manager - Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        System.Windows.MessageBox.Show(message, "Local Space Manager - Fatal Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         
         try 
         {
