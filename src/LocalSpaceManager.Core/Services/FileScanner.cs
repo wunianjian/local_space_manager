@@ -35,8 +35,7 @@ public class FileScanner : IFileScanner
         var filesScanned = 0;
         long totalBytes = 0;
         
-        // Estimate total files for progress bar (rough estimate based on drive stats if possible)
-        // For now, we'll use a dynamic estimation that grows as we find more files
+        // Estimate total files for progress bar
         int estimatedTotalFiles = 100000; 
 
         foreach (var path in paths)
@@ -53,6 +52,7 @@ public class FileScanner : IFileScanner
                         files, 
                         ref filesScanned, 
                         ref totalBytes, 
+                        ref estimatedTotalFiles,
                         progress, 
                         stopwatch, 
                         cancellationToken), cancellationToken);
@@ -100,6 +100,7 @@ public class FileScanner : IFileScanner
         List<FileInfoModel> files,
         ref int filesScanned,
         ref long totalBytes,
+        ref int estimatedTotalFiles,
         IProgress<ScanProgress>? progress,
         Stopwatch stopwatch,
         CancellationToken cancellationToken)
@@ -168,7 +169,7 @@ public class FileScanner : IFileScanner
                     
                 try
                 {
-                    ScanDirectory(subDir.FullName, files, ref filesScanned, ref totalBytes, progress, stopwatch, cancellationToken);
+                    ScanDirectory(subDir.FullName, files, ref filesScanned, ref totalBytes, ref estimatedTotalFiles, progress, stopwatch, cancellationToken);
                 }
                 catch (UnauthorizedAccessException)
                 {
