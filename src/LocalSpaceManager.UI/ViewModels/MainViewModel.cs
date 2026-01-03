@@ -3,6 +3,7 @@ using LocalSpaceManager.Core.Models;
 using LocalSpaceManager.Core.Services;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 
