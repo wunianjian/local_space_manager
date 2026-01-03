@@ -7,7 +7,7 @@ A Windows desktop application that monitors disk storage, maintains a local data
 ## Technology Stack
 
 ### Core Technologies
-- **Language**: C# with .NET 8.0
+- **Language**: C# with .NET 10.0
 - **UI Framework**: WPF (Windows Presentation Foundation) for native Windows experience
 - **Database**: SQLite for lightweight, embedded database
 - **ORM**: Entity Framework Core for database operations

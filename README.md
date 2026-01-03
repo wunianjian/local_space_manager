@@ -34,7 +34,7 @@ The main window provides a clean, responsive interface with the following compon
 
 The application is built using modern .NET technologies:
 
-- **.NET 8.0**: The latest long-term support version of .NET for Windows
+- **.NET 10.0**: The latest long-term support version of .NET for Windows
 - **WPF (Windows Presentation Foundation)**: Native Windows UI framework for rich desktop applications
 - **Entity Framework Core**: Object-relational mapping for database operations
 - **SQLite**: Embedded database engine for local data storage
@@ -69,7 +69,7 @@ The solution is organized into three main projects:
 To build and run this application, you need:
 
 - Windows 10 or Windows 11 (64-bit)
-- .NET 8.0 SDK or later
+- .NET 10.0 SDK or later
 - Visual Studio 2022 (recommended) or Visual Studio Code with C# extension
 
 ### Building the Application
@@ -199,7 +199,7 @@ Planned features for future versions include:
 
 ### Application Won't Start
 
-Ensure you have .NET 8.0 Runtime installed. You can download it from the official Microsoft website.
+Ensure you have .NET 10.0 Runtime installed. You can download it from the official Microsoft website.
 
 ### Scan Takes Too Long
 

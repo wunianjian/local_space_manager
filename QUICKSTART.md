@@ -6,7 +6,7 @@ Get up and running with Local Space Manager in just a few minutes.
 
 ### Option 1: Run from Source (Developers)
 
-If you have .NET 8.0 SDK installed:
+If you have .NET 10.0 SDK installed:
 
 ```bash
 git clone https://github.com/yourusername/local_space_manager.git

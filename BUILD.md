@@ -8,7 +8,7 @@ Before building the application, ensure you have the following installed on your
 
 ### Required Software
 
-**Microsoft .NET 8.0 SDK** or later is required to build the application. You can download it from the official Microsoft website at https://dotnet.microsoft.com/download/dotnet/8.0. Choose the SDK installer for Windows x64.
+**Microsoft .NET 10.0 SDK** or later is required to build the application. You can download it from the official Microsoft website at https://dotnet.microsoft.com/download/dotnet/10.0. Choose the SDK installer for Windows x64.
 
 **Visual Studio 2022** (recommended) provides the best development experience for this WPF application. The Community Edition is free and includes all necessary components. During installation, ensure you select the ".NET desktop development" workload.
 
@@ -105,7 +105,7 @@ This creates a single executable file in the `./publish` directory that includes
 
 ### Framework-Dependent Executable
 
-If you prefer a smaller executable that requires .NET 8.0 to be installed on the target machine:
+If you prefer a smaller executable that requires .NET 10.0 to be installed on the target machine:
 
 ```bash
 dotnet publish src/LocalSpaceManager.UI/LocalSpaceManager.UI.csproj ^
@@ -125,7 +125,7 @@ If you see an error about missing SDK, ensure you have .NET 8.0 SDK installed. C
 dotnet --list-sdks
 ```
 
-You should see version 8.0.x in the list.
+You should see version 10.0.x in the list.
 
 ### NuGet Package Restore Failures
 
@@ -227,7 +227,7 @@ Inform users of the following requirements:
 
 ## Additional Resources
 
-- [.NET 8.0 Documentation](https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-8)
+- [.NET 10.0 Documentation](https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-10)
 - [WPF Documentation](https://docs.microsoft.com/en-us/dotnet/desktop/wpf/)
 - [Entity Framework Core Documentation](https://docs.microsoft.com/en-us/ef/core/)
 - [SQLite Documentation](https://www.sqlite.org/docs.html)

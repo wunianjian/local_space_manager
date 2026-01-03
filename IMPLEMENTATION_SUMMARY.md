@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Local Space Manager is a complete Windows desktop application built with .NET 8.0 and WPF that provides comprehensive disk space monitoring and file management capabilities.
+Local Space Manager is a complete Windows desktop application built with .NET 10.0 and WPF that provides comprehensive disk space monitoring and file management capabilities.
 
 ## What Has Been Implemented
 
@@ -152,7 +152,7 @@ With proper indexes, queries remain fast even with millions of records:
 ### Prerequisites
 
 - Windows 10 version 1809 or later, or Windows 11
-- .NET 8.0 SDK (for building from source)
+- .NET 10.0 SDK (for building from source)
 - Visual Studio 2022 (recommended) or Visual Studio Code
 
 ### Quick Build
