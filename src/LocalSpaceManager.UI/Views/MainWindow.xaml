@@ -7,7 +7,7 @@
         xmlns:converters="clr-namespace:LocalSpaceManager.UI.Converters"
         xmlns:models="clr-namespace:LocalSpaceManager.Core.Models;assembly=LocalSpaceManager.Core"
         mc:Ignorable="d"
-        Title="Local Space Manager v2" Height="700" Width="1100"
+        Title="Local Space Manager v2" Height="750" Width="1150"
         WindowStartupLocation="CenterScreen">
     
     <Window.Resources>
@@ -55,11 +55,12 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header & Navigation -->
+        <!-- Header & Global Actions -->
         <Border Grid.Row="0" Background="#F8F9FA" BorderBrush="#DEE2E6" BorderThickness="0,0,0,1" Padding="15">
             <Grid>
                 <StackPanel Orientation="Horizontal">
@@ -74,8 +75,45 @@
             </Grid>
         </Border>
 
+        <!-- Drive Tabs -->
+        <ListBox Grid.Row="1" 
+                 ItemsSource="{Binding Drives}" 
+                 SelectedItem="{Binding SelectedDrive}"
+                 Background="#F1F3F4" 
+                 BorderThickness="0" 
+                 Padding="10,5,10,0">
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal"/>
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Border x:Name="Border" Padding="15,8" Margin="0,0,5,0" CornerRadius="5,5,0,0" Background="Transparent">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Border" Property="Background" Value="White"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Foreground" Value="#1A73E8"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Border" Property="Background" Value="#E8EAED"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListBox.ItemContainerStyle>
+        </ListBox>
+
         <!-- Main Content Area -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2" Background="White">
             <!-- Directory View -->
             <DataGrid ItemsSource="{Binding Directories}" 
                       AutoGenerateColumns="False" 
@@ -119,7 +157,7 @@
                 </DataGrid.Columns>
             </DataGrid>
 
-            <!-- File View (Reused for Cleanup) -->
+            <!-- File View -->
             <DataGrid ItemsSource="{Binding Files}" 
                       AutoGenerateColumns="False" 
                       IsReadOnly="True" 
@@ -151,7 +189,7 @@
         </Grid>
 
         <!-- Status Bar -->
-        <StatusBar Grid.Row="2" Padding="5" Background="#F1F3F4">
+        <StatusBar Grid.Row="3" Padding="5" Background="#F1F3F4">
             <StatusBarItem>
                 <TextBlock Text="{Binding StatusMessage}" Foreground="#5F6368"/>
             </StatusBarItem>
@@ -165,7 +203,7 @@
         </StatusBar>
 
         <!-- Loading Overlay -->
-        <Grid Grid.RowSpan="3" Background="#80000000" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}">
+        <Grid Grid.RowSpan="4" Background="#80000000" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}">
             <Border Background="White" CornerRadius="12" Padding="40" Width="500" VerticalAlignment="Center">
                 <StackPanel>
                     <TextBlock Text="Analyzing Disk Space" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>

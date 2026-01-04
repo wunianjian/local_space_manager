@@ -193,10 +193,18 @@ public class BackgroundScanService : IDisposable
                 if (!dirMap.TryGetValue(path, out var dirInfo))
                 {
                     var risk = _riskEngine.GetRisk(path, true);
+                    var dirName = Path.GetFileName(path);
+                    
+                    // Handle root directories (e.g., C:\) where GetFileName returns empty
+                    if (string.IsNullOrEmpty(dirName))
+                    {
+                        dirName = path;
+                    }
+
                     dirInfo = new DirectoryInfoModel
                     {
                         FullPath = path,
-                        DirectoryName = Path.GetFileName(path),
+                        DirectoryName = dirName,
                         ParentPath = Path.GetDirectoryName(path) ?? string.Empty,
                         RiskLevel = risk.Level,
                         RiskExplanation = risk.Explanation

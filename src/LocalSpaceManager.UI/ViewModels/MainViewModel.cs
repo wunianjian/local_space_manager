@@ -4,43 +4,92 @@ using LocalSpaceManager.Core.Services;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
-using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Input;
 
 namespace LocalSpaceManager.UI.ViewModels;
 
 public class MainViewModel : INotifyPropertyChanged
 {
-    private readonly IFileRepository _fileRepository;
     private readonly BackgroundScanService _scanService;
-    private readonly IRiskEngine _riskEngine;
-    
+    private readonly IFileRepository _repository;
+    private string _currentView = "Directories";
+    private string _currentPath = "All Drives";
     private bool _isScanning;
     private string _statusMessage = "Ready";
-    private string _dbSizeText = "DB Size: 0 B";
     private double _progressValue;
     private string _progressText = string.Empty;
     private string _timeRemainingText = string.Empty;
-    
-    private string _currentView = "Directories"; // Directories, Files, Cleanup
-    private string _currentPath = string.Empty;
-    private DirectoryInfoModel? _selectedDirectory;
-    
+    private string _dbSizeText = "DB Size: 0 MB";
+    private string _selectedDrive = "All";
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
     public ObservableCollection<DirectoryInfoModel> Directories { get; } = new();
     public ObservableCollection<FileInfoModel> Files { get; } = new();
-    public ObservableCollection<string> NavigationPath { get; } = new();
-    
-    public event PropertyChangedEventHandler? PropertyChanged;
-    
-    public bool IsScanning { get => _isScanning; set { _isScanning = value; OnPropertyChanged(); } }
-    public string StatusMessage { get => _statusMessage; set { _statusMessage = value; OnPropertyChanged(); } }
-    public string DbSizeText { get => _dbSizeText; set { _dbSizeText = value; OnPropertyChanged(); } }
-    public double ProgressValue { get => _progressValue; set { _progressValue = value; OnPropertyChanged(); } }
-    public string ProgressText { get => _progressText; set { _progressText = value; OnPropertyChanged(); } }
-    public string TimeRemainingText { get => _timeRemainingText; set { _timeRemainingText = value; OnPropertyChanged(); } }
-    
-    public string CurrentView { get => _currentView; set { _currentView = value; OnPropertyChanged(); } }
-    public string CurrentPath { get => _currentPath; set { _currentPath = value; OnPropertyChanged(); } }
+    public ObservableCollection<string> Drives { get; } = new();
+
+    public string CurrentView
+    {
+        get => _currentView;
+        set { _currentView = value; OnPropertyChanged(nameof(CurrentView)); }
+    }
+
+    public string CurrentPath
+    {
+        get => _currentPath;
+        set { _currentPath = value; OnPropertyChanged(nameof(CurrentPath)); }
+    }
+
+    public bool IsScanning
+    {
+        get => _isScanning;
+        set { _isScanning = value; OnPropertyChanged(nameof(IsScanning)); }
+    }
+
+    public string StatusMessage
+    {
+        get => _statusMessage;
+        set { _statusMessage = value; OnPropertyChanged(nameof(StatusMessage)); }
+    }
+
+    public double ProgressValue
+    {
+        get => _progressValue;
+        set { _progressValue = value; OnPropertyChanged(nameof(ProgressValue)); }
+    }
+
+    public string ProgressText
+    {
+        get => _progressText;
+        set { _progressText = value; OnPropertyChanged(nameof(ProgressText)); }
+    }
+
+    public string TimeRemainingText
+    {
+        get => _timeRemainingText;
+        set { _timeRemainingText = value; OnPropertyChanged(nameof(TimeRemainingText)); }
+    }
+
+    public string DbSizeText
+    {
+        get => _dbSizeText;
+        set { _dbSizeText = value; OnPropertyChanged(nameof(DbSizeText)); }
+    }
+
+    public string SelectedDrive
+    {
+        get => _selectedDrive;
+        set 
+        { 
+            if (_selectedDrive != value)
+            {
+                _selectedDrive = value; 
+                OnPropertyChanged(nameof(SelectedDrive));
+                _ = ShowTopDirectoriesAsync();
+            }
+        }
+    }
 
     public ICommand StartScanCommand { get; }
     public ICommand NavigateToDirectoryCommand { get; }
@@ -49,179 +98,176 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand ViewCleanupCommand { get; }
     public ICommand ViewTopDirectoriesCommand { get; }
 
-    public MainViewModel(IFileRepository fileRepository, BackgroundScanService scanService, IRiskEngine riskEngine)
+    public MainViewModel(BackgroundScanService scanService, IFileRepository repository)
     {
-        _fileRepository = fileRepository;
         _scanService = scanService;
-        _riskEngine = riskEngine;
-        
+        _repository = repository;
+
         StartScanCommand = new RelayCommand(async () => await StartScanAsync());
         NavigateToDirectoryCommand = new RelayCommand<DirectoryInfoModel>(async (dir) => await NavigateToDirectoryAsync(dir));
         NavigateBackCommand = new RelayCommand(async () => await NavigateBackAsync());
         ViewFilesCommand = new RelayCommand(async () => await ShowFilesAsync());
         ViewCleanupCommand = new RelayCommand(async () => await ShowCleanupAsync());
         ViewTopDirectoriesCommand = new RelayCommand(async () => await ShowTopDirectoriesAsync());
-        
+
         _scanService.ScanProgressChanged += OnScanProgressChanged;
         _scanService.ScanCompleted += OnScanCompleted;
-        
+
         // Load initial data after a short delay to ensure DB is ready
         Task.Run(async () => 
         {
             await Task.Delay(500);
+            await LoadDrivesAsync();
             await ShowTopDirectoriesAsync();
+        });
+    }
+
+    private async Task LoadDrivesAsync()
+    {
+        var drives = DriveInfo.GetDrives()
+            .Where(d => d.DriveType == DriveType.Fixed)
+            .Select(d => d.Name)
+            .ToList();
+
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            Drives.Clear();
+            Drives.Add("All");
+            foreach (var drive in drives) Drives.Add(drive);
         });
     }
 
     private async Task StartScanAsync()
     {
         IsScanning = true;
-        StatusMessage = "Scanning...";
-        Directories.Clear();
-        Files.Clear();
+        StatusMessage = "Initializing scan...";
         
+        var drives = DriveInfo.GetDrives()
+            .Where(d => d.DriveType == DriveType.Fixed)
+            .Select(d => d.Name)
+            .ToList();
+
         try
         {
-            var drives = DriveInfo.GetDrives()
-                .Where(d => d.IsReady && d.DriveType == DriveType.Fixed)
-                .Select(d => d.RootDirectory.FullName);
-            
             await _scanService.InitialScanAsync(drives);
+            await LoadDrivesAsync();
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            MessageBox.Show($"Scan failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
             IsScanning = false;
+            await UpdateDbSizeAsync();
         }
     }
 
     public async Task ShowTopDirectoriesAsync()
     {
         CurrentView = "Directories";
-        CurrentPath = "Top Occupied Directories";
-        NavigationPath.Clear();
+        CurrentPath = SelectedDrive == "All" ? "All Drives" : SelectedDrive;
         
-        Directories.Clear();
-        var topDirs = await _fileRepository.GetTopDirectoriesAsync(20);
-        foreach (var dir in topDirs) Directories.Add(dir);
+        var dirs = await _repository.GetTopDirectoriesAsync(100, SelectedDrive == "All" ? null : SelectedDrive);
         
-        UpdateDbSize();
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            Directories.Clear();
+            foreach (var dir in dirs) Directories.Add(dir);
+        });
+        
+        await UpdateDbSizeAsync();
     }
 
-    private async Task NavigateToDirectoryAsync(DirectoryInfoModel? dir)
+    private async Task NavigateToDirectoryAsync(DirectoryInfoModel? directory)
     {
-        if (dir == null) return;
+        if (directory == null) return;
+
+        CurrentPath = directory.FullPath;
+        var subDirs = await _repository.GetSubDirectoriesAsync(directory.FullPath);
         
-        _selectedDirectory = dir;
-        CurrentPath = dir.FullPath;
-        NavigationPath.Add(dir.DirectoryName);
-        
-        Directories.Clear();
-        var subDirs = await _fileRepository.GetSubDirectoriesAsync(dir.FullPath);
-        foreach (var sub in subDirs) Directories.Add(sub);
-        
-        if (Directories.Count == 0)
+        await Application.Current.Dispatcher.InvokeAsync(() =>
         {
-            await ShowFilesAsync();
-        }
+            Directories.Clear();
+            foreach (var dir in subDirs) Directories.Add(dir);
+        });
     }
 
     private async Task NavigateBackAsync()
     {
-        if (NavigationPath.Count == 0) return;
-        
-        NavigationPath.RemoveAt(NavigationPath.Count - 1);
-        
-        if (NavigationPath.Count == 0)
+        if (CurrentPath == "All Drives" || (SelectedDrive != "All" && CurrentPath == SelectedDrive)) return;
+
+        var parentPath = Path.GetDirectoryName(CurrentPath);
+        if (string.IsNullOrEmpty(parentPath))
         {
             await ShowTopDirectoriesAsync();
         }
         else
         {
-            var parentPath = Path.GetDirectoryName(CurrentPath);
-            if (string.IsNullOrEmpty(parentPath))
-            {
-                await ShowTopDirectoriesAsync();
-            }
-            else
-            {
-                var parentDir = await _fileRepository.GetDirectoryByPathAsync(parentPath);
-                await NavigateToDirectoryAsync(parentDir);
-                // Remove the extra path added by NavigateToDirectory
-                NavigationPath.RemoveAt(NavigationPath.Count - 1);
-            }
+            var parentDir = new DirectoryInfoModel { FullPath = parentPath };
+            await NavigateToDirectoryAsync(parentDir);
         }
     }
 
     private async Task ShowFilesAsync()
     {
         CurrentView = "Files";
-        Files.Clear();
+        var files = await _repository.GetFilesByDirectoryAsync(CurrentPath);
         
-        var files = await _fileRepository.GetFilesByDirectoryAsync(CurrentPath);
-        foreach (var file in files) Files.Add(file);
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            Files.Clear();
+            foreach (var file in files) Files.Add(file);
+        });
     }
 
     private async Task ShowCleanupAsync()
     {
         CurrentView = "Cleanup";
-        CurrentPath = "High-Value Cleanup (Large & Old Files)";
-        Files.Clear();
+        CurrentPath = "High-Value Cleanup Targets";
         
-        var config = _riskEngine.GetConfig();
-        var files = await _fileRepository.GetLargeAndOldFilesAsync(config.LargeFileThresholdBytes, config.OldFileThresholdDays);
-        foreach (var file in files) Files.Add(file);
+        // Default thresholds: > 500MB and > 180 days
+        var files = await _repository.GetLargeOldFilesAsync(500 * 1024 * 1024, 180);
+        
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            Files.Clear();
+            foreach (var file in files) Files.Add(file);
+        });
     }
 
-    private void OnScanProgressChanged(object? sender, ScanProgress progress)
+    private async Task UpdateDbSizeAsync()
     {
-        ProgressValue = progress.PercentComplete;
-        ProgressText = $"{progress.FilesScanned:N0} files found ({FormatBytes(progress.TotalBytesScanned)})";
-        TimeRemainingText = progress.RemainingTime.HasValue ? $"Remaining: {FormatTimeSpan(progress.RemainingTime.Value)}" : "";
-        StatusMessage = $"Scanning: {progress.CurrentPath}";
+        var dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LocalSpaceManager", "localspace.db");
+        if (File.Exists(dbPath))
+        {
+            var size = new FileInfo(dbPath).Length / (1024.0 * 1024.0);
+            DbSizeText = $"DB Size: {size:F1} MB";
+        }
+    }
+
+    private void OnScanProgressChanged(object? sender, ScanProgress e)
+    {
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            ProgressValue = e.PercentComplete;
+            ProgressText = $"{e.FilesScanned:N0} files found...";
+            StatusMessage = e.CurrentPath;
+            TimeRemainingText = e.RemainingTime.HasValue ? $"Est. time remaining: {e.RemainingTime.Value:mm\\:ss}" : "Calculating time...";
+        });
     }
 
     private void OnScanCompleted(object? sender, EventArgs e)
     {
-        IsScanning = false;
-        StatusMessage = "Scan completed";
-        UpdateDbSize();
-        _ = ShowTopDirectoriesAsync();
-    }
-
-    private void UpdateDbSize()
-    {
-        try
+        Application.Current.Dispatcher.Invoke(() =>
         {
-            var dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LocalSpaceManager", "localspace.db");
-            if (File.Exists(dbPath))
-            {
-                var info = new FileInfo(dbPath);
-                DbSizeText = $"DB Size: {FormatBytes(info.Length)}";
-            }
-        }
-        catch { }
+            IsScanning = false;
+            StatusMessage = "Scan complete";
+            _ = ShowTopDirectoriesAsync();
+        });
     }
 
-    private static string FormatBytes(long bytes)
-    {
-        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-        double len = bytes;
-        int order = 0;
-        while (len >= 1024 && order < sizes.Length - 1) { order++; len /= 1024; }
-        return $"{len:0.##} {sizes[order]}";
-    }
-
-    private static string FormatTimeSpan(TimeSpan ts)
-    {
-        if (ts.TotalHours >= 1) return $"{(int)ts.TotalHours}h {ts.Minutes}m";
-        return $"{ts.Minutes}m {ts.Seconds}s";
-    }
-
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    protected void OnPropertyChanged(string propertyName)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
