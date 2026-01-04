@@ -21,8 +21,6 @@ public class FileRepository : IFileRepository
     public async Task AddFilesAsync(IEnumerable<FileInfoModel> files)
     {
         var entities = files.Select(MapToEntity).ToList();
-        
-        // Use batch insert for better performance
         await _context.Files.AddRangeAsync(entities);
         await _context.SaveChangesAsync();
     }
@@ -48,7 +46,6 @@ public class FileRepository : IFileRepository
         }
         else
         {
-            // File doesn't exist, add it
             await _context.Files.AddAsync(MapToEntity(file));
             await _context.SaveChangesAsync();
         }
@@ -140,7 +137,7 @@ public class FileRepository : IFileRepository
     {
         await _context.Database.ExecuteSqlRawAsync("DELETE FROM Files");
         await _context.Database.ExecuteSqlRawAsync("DELETE FROM Directories");
-        await _context.Database.ExecuteSqlRawAsync("VACUUM"); // Reclaim space
+        await _context.Database.ExecuteSqlRawAsync("VACUUM");
     }
 
     public async Task AddDirectoriesAsync(IEnumerable<DirectoryInfoModel> directories)
@@ -150,9 +147,15 @@ public class FileRepository : IFileRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task<IEnumerable<DirectoryInfoModel>> GetTopDirectoriesAsync(int count)
+    public async Task<IEnumerable<DirectoryInfoModel>> GetTopDirectoriesAsync(int count, string? driveRoot = null)
     {
-        var entities = await _context.Directories
+        var query = _context.Directories.AsQueryable();
+        if (!string.IsNullOrEmpty(driveRoot))
+        {
+            query = query.Where(d => d.FullPath.StartsWith(driveRoot));
+        }
+
+        var entities = await query
             .OrderByDescending(d => d.TotalSizeInBytes)
             .Take(count)
             .ToListAsync();
@@ -173,6 +176,11 @@ public class FileRepository : IFileRepository
         var entity = await _context.Directories
             .FirstOrDefaultAsync(d => d.FullPath == path);
         return entity != null ? MapToDirectoryModel(entity) : null;
+    }
+
+    public async Task AggregateDirectoryDataAsync()
+    {
+        await Task.CompletedTask;
     }
 
     public async Task<IEnumerable<FileInfoModel>> GetLargeAndOldFilesAsync(long minSizeInBytes, int minAgeInDays)

@@ -113,7 +113,6 @@ public class MainViewModel : INotifyPropertyChanged
         _scanService.ScanProgressChanged += OnScanProgressChanged;
         _scanService.ScanCompleted += OnScanCompleted;
 
-        // Load initial data after a short delay to ensure DB is ready
         Task.Run(async () => 
         {
             await Task.Delay(500);
@@ -129,7 +128,7 @@ public class MainViewModel : INotifyPropertyChanged
             .Select(d => d.Name)
             .ToList();
 
-        await Application.Current.Dispatcher.InvokeAsync(() =>
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
         {
             Drives.Clear();
             Drives.Add("All");
@@ -154,7 +153,7 @@ public class MainViewModel : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Scan failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            System.Windows.MessageBox.Show($"Scan failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -170,7 +169,7 @@ public class MainViewModel : INotifyPropertyChanged
         
         var dirs = await _repository.GetTopDirectoriesAsync(100, SelectedDrive == "All" ? null : SelectedDrive);
         
-        await Application.Current.Dispatcher.InvokeAsync(() =>
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
         {
             Directories.Clear();
             foreach (var dir in dirs) Directories.Add(dir);
@@ -186,7 +185,7 @@ public class MainViewModel : INotifyPropertyChanged
         CurrentPath = directory.FullPath;
         var subDirs = await _repository.GetSubDirectoriesAsync(directory.FullPath);
         
-        await Application.Current.Dispatcher.InvokeAsync(() =>
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
         {
             Directories.Clear();
             foreach (var dir in subDirs) Directories.Add(dir);
@@ -214,7 +213,7 @@ public class MainViewModel : INotifyPropertyChanged
         CurrentView = "Files";
         var files = await _repository.GetFilesByDirectoryAsync(CurrentPath);
         
-        await Application.Current.Dispatcher.InvokeAsync(() =>
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
         {
             Files.Clear();
             foreach (var file in files) Files.Add(file);
@@ -226,10 +225,9 @@ public class MainViewModel : INotifyPropertyChanged
         CurrentView = "Cleanup";
         CurrentPath = "High-Value Cleanup Targets";
         
-        // Default thresholds: > 500MB and > 180 days
-        var files = await _repository.GetLargeOldFilesAsync(500 * 1024 * 1024, 180);
+        var files = await _repository.GetLargeAndOldFilesAsync(500 * 1024 * 1024, 180);
         
-        await Application.Current.Dispatcher.InvokeAsync(() =>
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
         {
             Files.Clear();
             foreach (var file in files) Files.Add(file);
@@ -248,7 +246,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     private void OnScanProgressChanged(object? sender, ScanProgress e)
     {
-        Application.Current.Dispatcher.Invoke(() =>
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
             ProgressValue = e.PercentComplete;
             ProgressText = $"{e.FilesScanned:N0} files found...";
@@ -259,7 +257,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     private void OnScanCompleted(object? sender, EventArgs e)
     {
-        Application.Current.Dispatcher.Invoke(() =>
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
             IsScanning = false;
             StatusMessage = "Scan complete";
