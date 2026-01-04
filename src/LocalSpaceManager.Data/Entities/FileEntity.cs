@@ -9,8 +9,8 @@ namespace LocalSpaceManager.Data.Entities;
 /// Database entity representing a file's metadata
 /// </summary>
 [Table("Files")]
-[Index(nameof(SizeInBytes), IsDescending = true)]
-[Index(nameof(ModifiedDate), IsDescending = true)]
+[Index(nameof(SizeInBytes), IsDescending = new[] { true })]
+[Index(nameof(ModifiedDate), IsDescending = new[] { true })]
 [Index(nameof(FullPath), IsUnique = true)]
 public class FileEntity
 {

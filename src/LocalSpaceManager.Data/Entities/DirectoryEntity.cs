@@ -6,7 +6,7 @@ namespace LocalSpaceManager.Data.Entities;
 
 [Index(nameof(FullPath), IsUnique = true)]
 [Index(nameof(ParentPath))]
-[Index(nameof(TotalSizeInBytes), IsDescending = true)]
+[Index(nameof(TotalSizeInBytes), IsDescending = new[] { true })]
 public class DirectoryEntity
 {
     [Key]
