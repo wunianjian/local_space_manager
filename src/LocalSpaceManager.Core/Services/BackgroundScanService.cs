@@ -61,9 +61,8 @@ public class BackgroundScanService : IDisposable
             
             // Save to database in batches
             var fileList = files.ToList();
-            var batchSize = 2000; // Increased batch size for faster DB operations
+            var batchSize = 2000; 
             
-            // Run DB operations in a separate task to keep UI responsive
             await Task.Run(async () => 
             {
                 for (int i = 0; i < fileList.Count; i += batchSize)
@@ -71,32 +70,48 @@ public class BackgroundScanService : IDisposable
                     if (cancellationToken.IsCancellationRequested)
                         break;
                         
-                var batch = fileList.Skip(i).Take(batchSize).ToList();
-                
-                // Apply risk assessment to each file
-                foreach (var file in batch)
-                {
-                    var risk = _riskEngine.GetRisk(file.FullPath, false);
-                    file.RiskLevel = risk.Level;
-                    file.RiskExplanation = risk.Explanation;
+                    var batch = fileList.Skip(i).Take(batchSize).ToList();
+                    
+                    foreach (var file in batch)
+                    {
+                        var risk = _riskEngine.GetRisk(file.FullPath, false);
+                        file.RiskLevel = risk.Level;
+                        file.RiskExplanation = risk.Explanation;
+                    }
+
+                    await _fileRepository.AddFilesAsync(batch);
+                    
+                    var dbProgress = new ScanProgress
+                    {
+                        FilesScanned = fileList.Count,
+                        CurrentPath = $"Saving to database: {i:N0} / {fileList.Count:N0}",
+                        PercentComplete = 99, 
+                        IsComplete = false
+                    };
+                    ScanProgressChanged?.Invoke(this, dbProgress);
                 }
 
-                await _fileRepository.AddFilesAsync(batch);
-                
-                // Report DB saving progress
-                var dbProgress = new ScanProgress
+                // Aggregate directory data
+                var aggProgress = new ScanProgress
                 {
                     FilesScanned = fileList.Count,
-                    CurrentPath = $"Saving to database: {i:N0} / {fileList.Count:N0}",
-                    PercentComplete = 99, // Almost done
+                    CurrentPath = "Analyzing directory structures...",
+                    PercentComplete = 99.5,
                     IsComplete = false
                 };
-                ScanProgressChanged?.Invoke(this, dbProgress);
-            }
-
-            // Aggregate directory data
-            await AggregateDirectoriesAsync(fileList, cancellationToken);
-        }, cancellationToken);
+                ScanProgressChanged?.Invoke(this, aggProgress);
+                
+                await AggregateDirectoriesAsync(fileList, cancellationToken);
+                
+                var finalProgress = new ScanProgress
+                {
+                    FilesScanned = fileList.Count,
+                    CurrentPath = "Scan Complete",
+                    PercentComplete = 100,
+                    IsComplete = true
+                };
+                ScanProgressChanged?.Invoke(this, finalProgress);
+            }, cancellationToken);
             
             _logger?.LogInformation("Initial scan completed. Total files: {Count}", fileList.Count);
             ScanCompleted?.Invoke(this, EventArgs.Empty);
@@ -194,16 +209,12 @@ public class BackgroundScanService : IDisposable
                 if (file.ModifiedDate > dirInfo.LastModifiedDate)
                     dirInfo.LastModifiedDate = file.ModifiedDate;
                 
-                // Update main file types (simplified: just keep track of extensions)
-                // In a real app, we'd use a more complex logic here
-                
                 path = Path.GetDirectoryName(path);
             }
         }
         
         _logger?.LogInformation("Saving {Count} directories to database...", dirMap.Count);
         
-        // Save in batches
         var dirList = dirMap.Values.ToList();
         var batchSize = 1000;
         for (int i = 0; i < dirList.Count; i += batchSize)
@@ -217,7 +228,6 @@ public class BackgroundScanService : IDisposable
         await _updateSemaphore.WaitAsync();
         try
         {
-            // Wait a bit to ensure file is fully written
             await Task.Delay(100);
             
             if (File.Exists(filePath))
@@ -240,9 +250,6 @@ public class BackgroundScanService : IDisposable
                 
                 await _fileRepository.UpdateFileAsync(fileModel);
                 _logger?.LogDebug("Updated file in database: {Path}", filePath);
-                
-                // Note: In a production app, we would also trigger a directory re-aggregation here
-                // For this version, we'll focus on the initial scan accuracy
             }
         }
         catch (Exception ex)
