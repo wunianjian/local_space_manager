@@ -23,6 +23,10 @@ public class FileInfoModel
     
     public DateTime LastScannedDate { get; set; }
     
+    public RiskLevel RiskLevel { get; set; }
+    
+    public string RiskExplanation { get; set; } = string.Empty;
+    
     /// <summary>
     /// Gets the human-readable file size
     /// </summary>

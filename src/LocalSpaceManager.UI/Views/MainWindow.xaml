@@ -3,124 +3,179 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:LocalSpaceManager.UI.Views"
+        xmlns:converters="clr-namespace:LocalSpaceManager.UI.Converters"
+        xmlns:models="clr-namespace:LocalSpaceManager.Core.Models;assembly=LocalSpaceManager.Core"
         mc:Ignorable="d"
-        Title="Local Space Manager" Height="600" Width="1000"
+        Title="Local Space Manager v2" Height="700" Width="1100"
         WindowStartupLocation="CenterScreen">
     
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:SizeConverter x:Key="SizeConverter"/>
+        <converters:ViewVisibilityConverter x:Key="ViewVisibilityConverter"/>
+        
+        <Style x:Key="RiskBadgeStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="Margin" Value="0,0,5,0"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding RiskLevel}" Value="Safe">
+                    <Setter Property="Background" Value="#E6F4EA"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding RiskLevel}" Value="Review">
+                    <Setter Property="Background" Value="#FFF4E5"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding RiskLevel}" Value="HighRisk">
+                    <Setter Property="Background" Value="#FCE8E6"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        
+        <Style x:Key="RiskTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding RiskLevel}" Value="Safe">
+                    <Setter Property="Text" Value="SAFE"/>
+                    <Setter Property="Foreground" Value="#137333"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding RiskLevel}" Value="Review">
+                    <Setter Property="Text" Value="REVIEW"/>
+                    <Setter Property="Foreground" Value="#B06000"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding RiskLevel}" Value="HighRisk">
+                    <Setter Property="Text" Value="HIGH RISK"/>
+                    <Setter Property="Foreground" Value="#C5221F"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
-    
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        
-        <!-- Toolbar -->
-        <ToolBar Grid.Row="0" Padding="5">
-            <Button Command="{Binding StartScanCommand}" Padding="10,5">
+
+        <!-- Header & Navigation -->
+        <Border Grid.Row="0" Background="#F8F9FA" BorderBrush="#DEE2E6" BorderThickness="0,0,0,1" Padding="15">
+            <Grid>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="🔍" FontSize="16" Margin="0,0,5,0"/>
-                    <TextBlock Text="Scan Drives" VerticalAlignment="Center"/>
+                    <Button Content="Home" Command="{Binding ViewTopDirectoriesCommand}" Padding="10,5" Margin="0,0,10,0"/>
+                    <Button Content="Back" Command="{Binding NavigateBackCommand}" Padding="10,5" Margin="0,0,10,0"/>
+                    <Button Content="Cleanup View" Command="{Binding ViewCleanupCommand}" Background="#E8F0FE" Foreground="#1967D2" Padding="10,5" Margin="0,0,20,0"/>
+                    
+                    <TextBlock Text="{Binding CurrentPath}" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold" Foreground="#5F6368"/>
                 </StackPanel>
-            </Button>
-            <Separator/>
-            <Button Command="{Binding RefreshCommand}" Padding="10,5">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="🔄" FontSize="16" Margin="0,0,5,0"/>
-                    <TextBlock Text="Refresh" VerticalAlignment="Center"/>
-                </StackPanel>
-            </Button>
-            <Separator/>
-            <TextBlock Text="Sort by:" VerticalAlignment="Center" Margin="10,0,5,0"/>
-            <Button Command="{Binding SortBySizeCommand}" Padding="10,5">
-                <TextBlock Text="Size"/>
-            </Button>
-            <Button Command="{Binding SortByDateCommand}" Padding="10,5">
-                <TextBlock Text="Modified Date"/>
-            </Button>
-        </ToolBar>
-        
-        <!-- File List -->
-        <DataGrid Grid.Row="1" 
-                  ItemsSource="{Binding Files}"
-                  AutoGenerateColumns="False"
-                  IsReadOnly="True"
-                  GridLinesVisibility="Horizontal"
-                  AlternatingRowBackground="#F5F5F5"
-                  RowHeight="30"
-                  VirtualizingPanel.IsVirtualizing="True"
-                  VirtualizingPanel.VirtualizationMode="Recycling"
-                  EnableRowVirtualization="True">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="File Name" Binding="{Binding FileName}" Width="*" MinWidth="200"/>
-                <DataGridTextColumn Header="Directory" Binding="{Binding DirectoryPath}" Width="2*" MinWidth="300"/>
-                <DataGridTextColumn Header="Size" Binding="{Binding FormattedSize}" Width="100">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="Modified Date" Binding="{Binding ModifiedDate, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}" Width="150"/>
-                <DataGridTextColumn Header="Extension" Binding="{Binding Extension}" Width="80"/>
-            </DataGrid.Columns>
-        </DataGrid>
-        
+                
+                <Button Content="Scan Drives" Command="{Binding StartScanCommand}" HorizontalAlignment="Right" Padding="15,5" Background="#1A73E8" Foreground="White" FontWeight="Bold"/>
+            </Grid>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="1">
+            <!-- Directory View -->
+            <DataGrid ItemsSource="{Binding Directories}" 
+                      AutoGenerateColumns="False" 
+                      IsReadOnly="True" 
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="None"
+                      Background="White"
+                      BorderThickness="0"
+                      RowHeight="40"
+                      Visibility="{Binding CurrentView, ConverterParameter=Directories, Converter={StaticResource ViewVisibilityConverter}}">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="Risk" Width="100">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding RiskExplanation}">
+                                    <Border Style="{StaticResource RiskBadgeStyle}">
+                                        <TextBlock Style="{StaticResource RiskTextStyle}"/>
+                                    </Border>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    
+                    <DataGridTemplateColumn Header="Directory Name" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding DirectoryName}" 
+                                        Command="{Binding DataContext.NavigateToDirectoryCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                        CommandParameter="{Binding}"
+                                        Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}"
+                                        HorizontalAlignment="Left"
+                                        FontWeight="SemiBold"
+                                        Foreground="#1A73E8"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    
+                    <DataGridTextColumn Header="Size" Binding="{Binding TotalSizeInBytes, Converter={StaticResource SizeConverter}}" Width="100"/>
+                    <DataGridTextColumn Header="Files" Binding="{Binding FileCount}" Width="80"/>
+                    <DataGridTextColumn Header="Modified" Binding="{Binding LastModifiedDate, StringFormat=\{0:yyyy-MM-dd\}}" Width="120"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- File View (Reused for Cleanup) -->
+            <DataGrid ItemsSource="{Binding Files}" 
+                      AutoGenerateColumns="False" 
+                      IsReadOnly="True" 
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="None"
+                      Background="White"
+                      BorderThickness="0"
+                      RowHeight="40"
+                      Visibility="{Binding CurrentView, ConverterParameter=Files, Converter={StaticResource ViewVisibilityConverter}}">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="Risk" Width="100">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding RiskExplanation}">
+                                    <Border Style="{StaticResource RiskBadgeStyle}">
+                                        <TextBlock Style="{StaticResource RiskTextStyle}"/>
+                                    </Border>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    
+                    <DataGridTextColumn Header="File Name" Binding="{Binding FileName}" Width="*" FontWeight="SemiBold"/>
+                    <DataGridTextColumn Header="Size" Binding="{Binding FormattedSize}" Width="100"/>
+                    <DataGridTextColumn Header="Modified" Binding="{Binding ModifiedDate, StringFormat=\{0:yyyy-MM-dd\}}" Width="120"/>
+                    <DataGridTextColumn Header="Explanation" Binding="{Binding RiskExplanation}" Width="200" Foreground="#666666"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+
         <!-- Status Bar -->
-        <StatusBar Grid.Row="2" Padding="5">
+        <StatusBar Grid.Row="2" Padding="5" Background="#F1F3F4">
             <StatusBarItem>
-                <TextBlock Text="{Binding StatusMessage}"/>
+                <TextBlock Text="{Binding StatusMessage}" Foreground="#5F6368"/>
             </StatusBarItem>
             <Separator/>
             <StatusBarItem>
-                <TextBlock Text="{Binding DbSizeText}" Foreground="#666666"/>
+                <TextBlock Text="{Binding DbSizeText}" Foreground="#888888"/>
             </StatusBarItem>
-            <Separator/>
             <StatusBarItem HorizontalAlignment="Right">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Monitoring: "/>
-                    <TextBlock Text="Active" Foreground="Green" FontWeight="Bold" Margin="5,0,0,0"/>
-                </StackPanel>
+                <TextBlock Text="Monitoring Active" Foreground="#137333" FontWeight="Bold"/>
             </StatusBarItem>
         </StatusBar>
-        
+
         <!-- Loading Overlay -->
-        <Grid Grid.Row="0" Grid.RowSpan="3" 
-              Background="#80000000" 
-              Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}">
-            <Border Background="White" 
-                    CornerRadius="10" 
-                    Padding="30"
-                    Width="450"
-                    HorizontalAlignment="Center" 
-                    VerticalAlignment="Center">
+        <Grid Grid.RowSpan="3" Background="#80000000" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Border Background="White" CornerRadius="12" Padding="40" Width="500" VerticalAlignment="Center">
                 <StackPanel>
-                    <TextBlock Text="Initializing Disk Scan" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,15"/>
-                    
-                    <TextBlock Text="{Binding ProgressText}" HorizontalAlignment="Left" Margin="0,0,0,5"/>
-                    <ProgressBar Value="{Binding ProgressValue}" Height="25" Width="400" Margin="0,0,0,5"/>
-                    
-                    <Grid Width="400">
-                        <TextBlock Text="{Binding TimeRemainingText}" HorizontalAlignment="Left" Foreground="#666666"/>
+                    <TextBlock Text="Analyzing Disk Space" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                    <TextBlock Text="{Binding ProgressText}" Margin="0,0,0,5"/>
+                    <ProgressBar Value="{Binding ProgressValue}" Height="15" Margin="0,0,0,10"/>
+                    <Grid>
+                        <TextBlock Text="{Binding TimeRemainingText}" Foreground="#666666"/>
                         <TextBlock Text="{Binding ProgressValue, StringFormat={}{0:F1}%}" HorizontalAlignment="Right" FontWeight="Bold"/>
                     </Grid>
-                    
-                    <TextBlock Text="{Binding StatusMessage}" 
-                               FontSize="11" 
-                               Foreground="#888888" 
-                               TextTrimming="CharacterEllipsis" 
-                               Margin="0,15,0,0" 
-                               HorizontalAlignment="Center"/>
-                    
-                    <TextBlock Text="This may take several minutes for large drives. The app will remain responsive." 
-                               FontSize="10" 
-                               FontStyle="Italic" 
-                               Foreground="#999999" 
-                               Margin="0,10,0,0" 
-                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="11" Foreground="#999999" Margin="0,20,0,0" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
             </Border>
         </Grid>

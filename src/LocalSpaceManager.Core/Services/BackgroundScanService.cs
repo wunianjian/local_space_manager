@@ -12,6 +12,7 @@ public class BackgroundScanService : IDisposable
     private readonly IFileScanner _fileScanner;
     private readonly IFileSystemMonitor _fileSystemMonitor;
     private readonly IFileRepository _fileRepository;
+    private readonly IRiskEngine _riskEngine;
     private readonly ILogger<BackgroundScanService>? _logger;
     private readonly SemaphoreSlim _updateSemaphore = new(1, 1);
     
@@ -22,11 +23,13 @@ public class BackgroundScanService : IDisposable
         IFileScanner fileScanner,
         IFileSystemMonitor fileSystemMonitor,
         IFileRepository fileRepository,
+        IRiskEngine riskEngine,
         ILogger<BackgroundScanService>? logger = null)
     {
         _fileScanner = fileScanner;
         _fileSystemMonitor = fileSystemMonitor;
         _fileRepository = fileRepository;
+        _riskEngine = riskEngine;
         _logger = logger;
         
         // Subscribe to file system events
@@ -68,20 +71,32 @@ public class BackgroundScanService : IDisposable
                     if (cancellationToken.IsCancellationRequested)
                         break;
                         
-                    var batch = fileList.Skip(i).Take(batchSize);
-                    await _fileRepository.AddFilesAsync(batch);
-                    
-                    // Report DB saving progress
-                    var dbProgress = new ScanProgress
-                    {
-                        FilesScanned = fileList.Count,
-                        CurrentPath = $"Saving to database: {i:N0} / {fileList.Count:N0}",
-                        PercentComplete = 99, // Almost done
-                        IsComplete = false
-                    };
-                    ScanProgressChanged?.Invoke(this, dbProgress);
+                var batch = fileList.Skip(i).Take(batchSize).ToList();
+                
+                // Apply risk assessment to each file
+                foreach (var file in batch)
+                {
+                    var risk = _riskEngine.GetRisk(file.FullPath, false);
+                    file.RiskLevel = risk.Level;
+                    file.RiskExplanation = risk.Explanation;
                 }
-            }, cancellationToken);
+
+                await _fileRepository.AddFilesAsync(batch);
+                
+                // Report DB saving progress
+                var dbProgress = new ScanProgress
+                {
+                    FilesScanned = fileList.Count,
+                    CurrentPath = $"Saving to database: {i:N0} / {fileList.Count:N0}",
+                    PercentComplete = 99, // Almost done
+                    IsComplete = false
+                };
+                ScanProgressChanged?.Invoke(this, dbProgress);
+            }
+
+            // Aggregate directory data
+            await AggregateDirectoriesAsync(fileList, cancellationToken);
+        }, cancellationToken);
             
             _logger?.LogInformation("Initial scan completed. Total files: {Count}", fileList.Count);
             ScanCompleted?.Invoke(this, EventArgs.Empty);
@@ -147,6 +162,56 @@ public class BackgroundScanService : IDisposable
         await UpdateFileInDatabaseAsync(filePath);
     }
     
+    private async Task AggregateDirectoriesAsync(List<FileInfoModel> files, CancellationToken cancellationToken)
+    {
+        _logger?.LogInformation("Aggregating directory data...");
+        
+        var dirMap = new Dictionary<string, DirectoryInfoModel>();
+        
+        foreach (var file in files)
+        {
+            if (cancellationToken.IsCancellationRequested) break;
+            
+            var path = file.DirectoryPath;
+            while (!string.IsNullOrEmpty(path))
+            {
+                if (!dirMap.TryGetValue(path, out var dirInfo))
+                {
+                    var risk = _riskEngine.GetRisk(path, true);
+                    dirInfo = new DirectoryInfoModel
+                    {
+                        FullPath = path,
+                        DirectoryName = Path.GetFileName(path),
+                        ParentPath = Path.GetDirectoryName(path) ?? string.Empty,
+                        RiskLevel = risk.Level,
+                        RiskExplanation = risk.Explanation
+                    };
+                    dirMap[path] = dirInfo;
+                }
+                
+                dirInfo.TotalSizeInBytes += file.SizeInBytes;
+                dirInfo.FileCount++;
+                if (file.ModifiedDate > dirInfo.LastModifiedDate)
+                    dirInfo.LastModifiedDate = file.ModifiedDate;
+                
+                // Update main file types (simplified: just keep track of extensions)
+                // In a real app, we'd use a more complex logic here
+                
+                path = Path.GetDirectoryName(path);
+            }
+        }
+        
+        _logger?.LogInformation("Saving {Count} directories to database...", dirMap.Count);
+        
+        // Save in batches
+        var dirList = dirMap.Values.ToList();
+        var batchSize = 1000;
+        for (int i = 0; i < dirList.Count; i += batchSize)
+        {
+            await _fileRepository.AddDirectoriesAsync(dirList.Skip(i).Take(batchSize));
+        }
+    }
+
     private async Task UpdateFileInDatabaseAsync(string filePath)
     {
         await _updateSemaphore.WaitAsync();
@@ -158,6 +223,7 @@ public class BackgroundScanService : IDisposable
             if (File.Exists(filePath))
             {
                 var fileInfo = new FileInfo(filePath);
+                var risk = _riskEngine.GetRisk(fileInfo.FullName, false);
                 var fileModel = new FileInfoModel
                 {
                     FullPath = fileInfo.FullName,
@@ -167,11 +233,16 @@ public class BackgroundScanService : IDisposable
                     SizeInBytes = fileInfo.Length,
                     CreatedDate = fileInfo.CreationTime,
                     ModifiedDate = fileInfo.LastWriteTime,
-                    LastScannedDate = DateTime.Now
+                    LastScannedDate = DateTime.Now,
+                    RiskLevel = risk.Level,
+                    RiskExplanation = risk.Explanation
                 };
                 
                 await _fileRepository.UpdateFileAsync(fileModel);
                 _logger?.LogDebug("Updated file in database: {Path}", filePath);
+                
+                // Note: In a production app, we would also trigger a directory re-aggregation here
+                // For this version, we'll focus on the initial scan accuracy
             }
         }
         catch (Exception ex)

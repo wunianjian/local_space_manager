@@ -41,6 +41,8 @@ public class FileRepository : IFileRepository
             entity.CreatedDate = file.CreatedDate;
             entity.ModifiedDate = file.ModifiedDate;
             entity.LastScannedDate = DateTime.Now;
+            entity.RiskLevel = file.RiskLevel;
+            entity.RiskExplanation = file.RiskExplanation;
             
             await _context.SaveChangesAsync();
         }
@@ -137,9 +139,86 @@ public class FileRepository : IFileRepository
     public async Task ClearAllAsync()
     {
         await _context.Database.ExecuteSqlRawAsync("DELETE FROM Files");
+        await _context.Database.ExecuteSqlRawAsync("DELETE FROM Directories");
         await _context.Database.ExecuteSqlRawAsync("VACUUM"); // Reclaim space
     }
+
+    public async Task AddDirectoriesAsync(IEnumerable<DirectoryInfoModel> directories)
+    {
+        var entities = directories.Select(MapToDirectoryEntity).ToList();
+        await _context.Directories.AddRangeAsync(entities);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<IEnumerable<DirectoryInfoModel>> GetTopDirectoriesAsync(int count)
+    {
+        var entities = await _context.Directories
+            .OrderByDescending(d => d.TotalSizeInBytes)
+            .Take(count)
+            .ToListAsync();
+        return entities.Select(MapToDirectoryModel);
+    }
+
+    public async Task<IEnumerable<DirectoryInfoModel>> GetSubDirectoriesAsync(string parentPath)
+    {
+        var entities = await _context.Directories
+            .Where(d => d.ParentPath == parentPath)
+            .OrderByDescending(d => d.TotalSizeInBytes)
+            .ToListAsync();
+        return entities.Select(MapToDirectoryModel);
+    }
+
+    public async Task<DirectoryInfoModel?> GetDirectoryByPathAsync(string path)
+    {
+        var entity = await _context.Directories
+            .FirstOrDefaultAsync(d => d.FullPath == path);
+        return entity != null ? MapToDirectoryModel(entity) : null;
+    }
+
+    public async Task<IEnumerable<FileInfoModel>> GetLargeAndOldFilesAsync(long minSizeInBytes, int minAgeInDays)
+    {
+        var cutoffDate = DateTime.Now.AddDays(-minAgeInDays);
+        var entities = await _context.Files
+            .Where(f => f.SizeInBytes >= minSizeInBytes && f.ModifiedDate <= cutoffDate)
+            .OrderByDescending(f => f.SizeInBytes)
+            .ToListAsync();
+        return entities.Select(MapToModel);
+    }
     
+    private static DirectoryEntity MapToDirectoryEntity(DirectoryInfoModel model)
+    {
+        return new DirectoryEntity
+        {
+            Id = model.Id,
+            FullPath = model.FullPath,
+            DirectoryName = model.DirectoryName,
+            ParentPath = model.ParentPath,
+            TotalSizeInBytes = model.TotalSizeInBytes,
+            FileCount = model.FileCount,
+            LastModifiedDate = model.LastModifiedDate,
+            RiskLevel = model.RiskLevel,
+            RiskExplanation = model.RiskExplanation,
+            MainFileTypes = model.MainFileTypes
+        };
+    }
+
+    private static DirectoryInfoModel MapToDirectoryModel(DirectoryEntity entity)
+    {
+        return new DirectoryInfoModel
+        {
+            Id = entity.Id,
+            FullPath = entity.FullPath,
+            DirectoryName = entity.DirectoryName,
+            ParentPath = entity.ParentPath,
+            TotalSizeInBytes = entity.TotalSizeInBytes,
+            FileCount = entity.FileCount,
+            LastModifiedDate = entity.LastModifiedDate,
+            RiskLevel = entity.RiskLevel,
+            RiskExplanation = entity.RiskExplanation,
+            MainFileTypes = entity.MainFileTypes
+        };
+    }
+
     private static FileEntity MapToEntity(FileInfoModel model)
     {
         return new FileEntity
@@ -152,7 +231,9 @@ public class FileRepository : IFileRepository
             SizeInBytes = model.SizeInBytes,
             CreatedDate = model.CreatedDate,
             ModifiedDate = model.ModifiedDate,
-            LastScannedDate = model.LastScannedDate
+            LastScannedDate = model.LastScannedDate,
+            RiskLevel = model.RiskLevel,
+            RiskExplanation = model.RiskExplanation
         };
     }
     
@@ -168,7 +249,9 @@ public class FileRepository : IFileRepository
             SizeInBytes = entity.SizeInBytes,
             CreatedDate = entity.CreatedDate,
             ModifiedDate = entity.ModifiedDate,
-            LastScannedDate = entity.LastScannedDate
+            LastScannedDate = entity.LastScannedDate,
+            RiskLevel = entity.RiskLevel,
+            RiskExplanation = entity.RiskExplanation
         };
     }
 }

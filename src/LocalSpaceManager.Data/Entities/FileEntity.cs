@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using LocalSpaceManager.Core.Models;
 
 namespace LocalSpaceManager.Data.Entities;
 
@@ -8,8 +9,8 @@ namespace LocalSpaceManager.Data.Entities;
 /// Database entity representing a file's metadata
 /// </summary>
 [Table("Files")]
-[Index(nameof(SizeInBytes), IsDescending = new[] { true })]
-[Index(nameof(ModifiedDate), IsDescending = new[] { true })]
+[Index(nameof(SizeInBytes), IsDescending = true)]
+[Index(nameof(ModifiedDate), IsDescending = true)]
 [Index(nameof(FullPath), IsUnique = true)]
 public class FileEntity
 {
@@ -39,4 +40,8 @@ public class FileEntity
     public DateTime ModifiedDate { get; set; }
     
     public DateTime LastScannedDate { get; set; }
+    
+    public RiskLevel RiskLevel { get; set; }
+    
+    public string RiskExplanation { get; set; } = string.Empty;
 }

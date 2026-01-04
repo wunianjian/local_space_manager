@@ -30,4 +30,13 @@ public interface IFileRepository
     Task<long> GetTotalSizeAsync();
     
     Task ClearAllAsync();
+
+    // Directory operations
+    Task AddDirectoriesAsync(IEnumerable<DirectoryInfoModel> directories);
+    Task<IEnumerable<DirectoryInfoModel>> GetTopDirectoriesAsync(int count);
+    Task<IEnumerable<DirectoryInfoModel>> GetSubDirectoriesAsync(string parentPath);
+    Task<DirectoryInfoModel?> GetDirectoryByPathAsync(string path);
+    
+    // Cleanup views
+    Task<IEnumerable<FileInfoModel>> GetLargeAndOldFilesAsync(long minSizeInBytes, int minAgeInDays);
 }

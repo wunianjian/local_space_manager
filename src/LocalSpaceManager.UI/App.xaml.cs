@@ -136,6 +136,7 @@ public partial class App : System.Windows.Application
         services.AddScoped<IFileRepository, FileRepository>();
         
         // Services
+        services.AddSingleton<IRiskEngine, RiskEngine>();
         services.AddSingleton<IFileScanner, FileScanner>();
         services.AddSingleton<IFileSystemMonitor, FileSystemMonitor>();
         services.AddSingleton<BackgroundScanService>();
