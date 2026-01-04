@@ -11,6 +11,7 @@ namespace LocalSpaceManager.Core.Services;
 public class FileScanner : IFileScanner
 {
     private readonly ILogger<FileScanner>? _logger;
+    private double _lastReportedPercent = 0;
     
     public FileScanner(ILogger<FileScanner>? logger = null)
     {
@@ -34,8 +35,9 @@ public class FileScanner : IFileScanner
         var stopwatch = Stopwatch.StartNew();
         var filesScanned = 0;
         long totalBytes = 0;
+        _lastReportedPercent = 0;
         
-        // Estimate total files for progress bar
+        // Initial estimate
         int estimatedTotalFiles = 100000; 
 
         foreach (var path in paths)
@@ -71,14 +73,6 @@ public class FileScanner : IFileScanner
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error scanning path: {Path}", path);
-                progress?.Report(new ScanProgress
-                {
-                    FilesScanned = filesScanned,
-                    TotalBytesScanned = totalBytes,
-                    CurrentPath = path,
-                    ElapsedTime = stopwatch.Elapsed,
-                    ErrorMessage = ex.Message
-                });
             }
         }
         
@@ -107,7 +101,6 @@ public class FileScanner : IFileScanner
     {
         try
         {
-            // Scan files in current directory
             var dirInfo = new DirectoryInfo(directoryPath);
             
             foreach (var file in dirInfo.EnumerateFiles())
@@ -124,17 +117,24 @@ public class FileScanner : IFileScanner
                         filesScanned++;
                         totalBytes += fileModel.SizeInBytes;
                         
-                        // Report progress every 500 files for better performance
                         if (filesScanned % 500 == 0)
                         {
-                            // Adjust estimation if we exceed it
+                            // Adjust estimation more conservatively to prevent jumping back
                             if (filesScanned >= estimatedTotalFiles)
-                                estimatedTotalFiles = (int)(filesScanned * 1.5);
+                                estimatedTotalFiles = Math.Max(filesScanned + 1000, (int)(filesScanned * 1.3));
 
                             var elapsed = stopwatch.Elapsed;
                             var speed = filesScanned / elapsed.TotalSeconds;
                             var remainingFiles = estimatedTotalFiles - filesScanned;
                             var remainingTime = speed > 0 ? TimeSpan.FromSeconds(remainingFiles / speed) : TimeSpan.Zero;
+
+                            var currentPercent = Math.Min(99, (double)filesScanned / estimatedTotalFiles * 100);
+                            
+                            // Ensure percentage only moves forward
+                            if (currentPercent < _lastReportedPercent)
+                                currentPercent = _lastReportedPercent;
+                            
+                            _lastReportedPercent = currentPercent;
 
                             progress?.Report(new ScanProgress
                             {
@@ -142,7 +142,7 @@ public class FileScanner : IFileScanner
                                 TotalBytesScanned = totalBytes,
                                 CurrentPath = file.FullName,
                                 ElapsedTime = elapsed,
-                                PercentComplete = Math.Min(99, (double)filesScanned / estimatedTotalFiles * 100),
+                                PercentComplete = currentPercent,
                                 ScanSpeed = speed,
                                 RemainingTime = remainingTime,
                                 TotalFilesEstimated = estimatedTotalFiles
@@ -150,18 +150,13 @@ public class FileScanner : IFileScanner
                         }
                     }
                 }
-                catch (UnauthorizedAccessException)
-                {
-                    // Skip files we don't have access to
-                    _logger?.LogDebug("Access denied to file: {Path}", file.FullName);
-                }
+                catch (UnauthorizedAccessException) { }
                 catch (Exception ex)
                 {
                     _logger?.LogWarning(ex, "Error processing file: {Path}", file.FullName);
                 }
             }
             
-            // Recursively scan subdirectories
             foreach (var subDir in dirInfo.EnumerateDirectories())
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -171,11 +166,7 @@ public class FileScanner : IFileScanner
                 {
                     ScanDirectory(subDir.FullName, files, ref filesScanned, ref totalBytes, ref estimatedTotalFiles, progress, stopwatch, cancellationToken);
                 }
-                catch (UnauthorizedAccessException)
-                {
-                    // Skip directories we don't have access to
-                    _logger?.LogDebug("Access denied to directory: {Path}", subDir.FullName);
-                }
+                catch (UnauthorizedAccessException) { }
                 catch (Exception ex)
                 {
                     _logger?.LogWarning(ex, "Error scanning directory: {Path}", subDir.FullName);
