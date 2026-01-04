@@ -65,7 +65,12 @@ public class MainViewModel : INotifyPropertyChanged
         _scanService.ScanProgressChanged += OnScanProgressChanged;
         _scanService.ScanCompleted += OnScanCompleted;
         
-        _ = ShowTopDirectoriesAsync();
+        // Load initial data after a short delay to ensure DB is ready
+        Task.Run(async () => 
+        {
+            await Task.Delay(500);
+            await ShowTopDirectoriesAsync();
+        });
     }
 
     private async Task StartScanAsync()

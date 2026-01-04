@@ -176,14 +176,25 @@ public partial class App : System.Windows.Application
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<LocalSpaceDbContext>();
             
-            // Create database if it doesn't exist
-            context.Database.EnsureCreated();
-            
-            // Apply any pending migrations
-            if (context.Database.GetPendingMigrations().Any())
+            // For v2, if the Directories table is missing, we need to recreate the database
+            // A simple way is to check if we can query the Directories table
+            bool tableExists = true;
+            try
             {
-                context.Database.Migrate();
+                context.Directories.Any();
             }
+            catch
+            {
+                tableExists = false;
+            }
+
+            if (!tableExists)
+            {
+                // Delete and recreate to ensure fresh schema
+                context.Database.EnsureDeleted();
+            }
+
+            context.Database.EnsureCreated();
         }
         catch (Exception ex)
         {
